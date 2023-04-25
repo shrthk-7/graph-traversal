@@ -1,5 +1,9 @@
 import p5 from "p5";
 
+const sleep = (ms) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 const initializeMatrix = (rows = 1, cols = 1, matrix = []) => {
   for (let i = 0; i < rows; i++) {
     const list = [];
@@ -10,15 +14,48 @@ const initializeMatrix = (rows = 1, cols = 1, matrix = []) => {
   }
 };
 
+// const initializeNodesForBFS = (nodes = []) => {
+// };
+
+const startBFS = async (nodes = [], adjMatrix = [], redraw = () => {}) => {
+  for (let i in nodes) {
+    nodes[i].color = i === 0 ? 100 : 255;
+    nodes[i].index = i;
+  }
+
+  const q = [{ ...nodes[0] }];
+  await sleep(500);
+
+  while (q.length !== 0) {
+    let size = q.length;
+    while (size--) {
+      const node = q.shift();
+      const idx = node.index;
+
+      for (let i in nodes) {
+        if (adjMatrix[idx][i] !== 1 || nodes[i].color !== 255) continue;
+        q.push({ ...nodes[i] });
+        nodes[i].color = 100;
+        // redraw();
+        // await sleep(500);
+      }
+      nodes[idx].color = 0;
+      redraw();
+      await sleep(100);
+    }
+  }
+};
+
 const sketch = (p = new p5()) => {
+  const bgColor = [100, 20, 200];
   const nodes = [];
-  const lines = [];
   const adjMatrix = [];
   const diameter = 20;
 
   p.setup = function () {
     const canvas = p.createCanvas(400, 400);
-    p.background(100);
+    p.frameRate(10);
+    p.background(bgColor);
     p.strokeWeight(2);
 
     // adding nodes
@@ -36,9 +73,8 @@ const sketch = (p = new p5()) => {
       nodes.push(data);
     });
 
-    const submitBtn = p.createButton("Graph created");
-
     // graph creation finished
+    const submitBtn = p.createButton("Graph created");
     submitBtn.mouseClicked(() => {
       submitBtn.html("Start BFS");
       initializeMatrix(nodes.length, nodes.length, adjMatrix);
@@ -47,12 +83,12 @@ const sketch = (p = new p5()) => {
       let mouseClickStartY = null;
 
       canvas.mouseClicked(false);
-      canvas.mousePressed(() => {
-        mouseClickStartX = this.mouseX;
-        mouseClickStartY = this.mouseY;
-      });
-      canvas.mouseReleased(() => {
-        if (!mouseClickStartX || !mouseClickStartY) return;
+      canvas.mouseClicked(() => {
+        if (!mouseClickStartX || !mouseClickStartY) {
+          mouseClickStartX = this.mouseX;
+          mouseClickStartY = this.mouseY;
+          return;
+        }
 
         const line = {
           x1: mouseClickStartX,
@@ -81,18 +117,58 @@ const sketch = (p = new p5()) => {
         adjMatrix[nodeA][nodeB] = 1;
         adjMatrix[nodeB][nodeA] = 1;
       });
+      // canvas.mousePressed(() => {
+      //   mouseClickStartX = this.mouseX;
+      //   mouseClickStartY = this.mouseY;
+      // });
+      // canvas.mouseReleased(() => {
+      //   if (!mouseClickStartX || !mouseClickStartY) return;
+
+      //   const line = {
+      //     x1: mouseClickStartX,
+      //     y1: mouseClickStartY,
+      //     x2: this.mouseX,
+      //     y2: this.mouseY,
+      //   };
+
+      //   mouseClickStartX = null;
+      //   mouseClickStartY = null;
+
+      //   let nodeA = null;
+      //   let nodeB = null;
+
+      //   nodes.forEach((node, i) => {
+      //     if (p.dist(node.x, node.y, line.x1, line.y1) > diameter) return;
+      //     nodeA = i;
+      //   });
+      //   nodes.forEach((node, i) => {
+      //     if (p.dist(node.x, node.y, line.x2, line.y2) > diameter) return;
+      //     nodeB = i;
+      //   });
+
+      //   if (nodeA === nodeB || nodeA === null || nodeB === null) return;
+
+      //   adjMatrix[nodeA][nodeB] = 1;
+      //   adjMatrix[nodeB][nodeA] = 1;
+      // });
 
       submitBtn.mouseClicked(() => {
+        submitBtn.html("BFS-ing");
         canvas.mousePressed(false);
         canvas.mouseReleased(false);
 
-        alert("BFS Started");
+        p.noLoop();
+        startBFS(nodes, adjMatrix, () => p.redraw());
       });
     });
 
     p.draw = () => {
-      p.background(100);
+      p.background(bgColor);
+
+      if (!p.isLooping()) console.log([...nodes].map((node) => node.color));
+
       nodes.forEach((node) => {
+        p.fill(node.color ?? 255);
         p.circle(node.x, node.y, diameter);
       });
 
